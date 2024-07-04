@@ -3,8 +3,23 @@ from PIL import Image
 import os
 from re import split
 from glob import glob
+from tqdm import tqdm
+import datetime
+import time
+from bcolors import bcolors
+
 
 natsort = lambda s: [int(t) if t.isdigit() else t.lower() for t in split(r'(\d+)', s)]
+
+# Utilities
+def PrintSystemHeader():
+    print('[' +  bcolors.BRIGHT_YELLOW + 'System' + bcolors.ENDC + ' | '+ f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}' + ']' + ' Initiallizing')
+    headerString = '[' +  bcolors.BRIGHT_YELLOW + 'System' + bcolors.ENDC + ' | '+ f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}' + ']'
+    return headerString
+def PrintUserHeader():
+    print('[' +  bcolors.color256(fg=214) + 'Isei' + bcolors.ENDC + ' | '+ f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}' + ']' + ' Initiallizing')
+    headerString = '[' +  bcolors.color256(fg=214) + 'Isei' + bcolors.ENDC + ' | '+ f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}' + ']'
+    return headerString
 
 def pdf_to_jpegs(pdf_path, output_folder, dpi=600):
     # Open the PDF file
@@ -29,7 +44,7 @@ def pdf_to_jpegs(pdf_path, output_folder, dpi=600):
         # Save the image as a JPEG file
         output_path = os.path.join(output_folder, f"page_{page_number + 1}.jpg")
         img.save(output_path, "JPEG", quality=95)
-        print(f"Saved {output_path}")
+        print( systemString + ' ' + bcolors.BRIGHT_CYAN + f"Saved {output_path}" + bcolors.ENDC)
 
 def rgb_to_cmyk_custom(image_path, output_path):
     # Open the image
@@ -40,8 +55,9 @@ def rgb_to_cmyk_custom(image_path, output_path):
     pixels = rgb_image.getdata()
     cmyk_pixels = []
 
-    for pixel in pixels:
-        r, g, b = [x / 255.0 for x in pixel]
+    # GPT version
+    for pixel_index in tqdm(range(len(pixels))):
+        r, g, b = [x / 255.0 for x in pixels[pixel_index]]
 
         # Convert RGB to CMY
         c = 1 - r
@@ -71,7 +87,7 @@ def rgb_to_cmyk_custom(image_path, output_path):
 
     # Save CMYK image
     cmyk_image.save(output_path)
-    print(f"Custom converted image saved to {output_path}")
+    print(systemString + ' ' + bcolors.BRIGHT_CYAN + f"Custom converted image saved to {output_path}" + bcolors.ENDC)
 
 
 def jpgs_to_pdf(jpg_list, output_pdf):
@@ -83,7 +99,7 @@ def jpgs_to_pdf(jpg_list, output_pdf):
     """
     # Ensure the list is not empty
     if not jpg_list:
-        print("The list of JPEGs is empty.")
+        print(systemString + ' ' + bcolors.BRIGHT_CYAN + "The list of JPEGs is empty." + bcolors.ENDC)
         return
 
     # Open the first image and convert to RGB (necessary for PDF)
@@ -94,38 +110,59 @@ def jpgs_to_pdf(jpg_list, output_pdf):
 
     # Save all images to a single PDF
     image1.save(output_pdf, save_all=True, append_images=images)
-    print(f"PDF saved to {output_pdf}")
+    print(systemString + ' ' + bcolors.BRIGHT_CYAN + f"PDF saved to {output_pdf}" + bcolors.ENDC)
 
 if __name__ == "__main__":
+    # Header strings
+    IseiString = PrintUserHeader()
+    systemString = PrintSystemHeader()
+
     # Disassemble pdf to jpg, 
-    pdf_list = sorted(glob('./to_convert_rgb_pdf/*'), key=natsort)
+    pdf_list = sorted(glob('./In_PDF/*'), key=natsort)
     pdf_len = len(pdf_list)
-    print('Master Isei, the system is starting up.')
-    for pdf_number in range(pdf_len):
-        print(f'Processing the first pdf. PDF file: {pdf_list[pdf_number]}')
+    print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Master Isei, the system is starting up.' + bcolors.ENDC)
 
-        pdf_to_jpegs_target_dir = f'./output_images/{pdf_number}_rgb_imgs'
-        os.mkdir(pdf_to_jpegs_target_dir)
+    try:
+        # Clear cache if previous calculation is interrupted
+        print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Cleaning the cache from previous calculations' + bcolors.ENDC)
+        os.system('rm -rf ./Step1_cache/*')
+        os.system('rm -rf ./Step2_cache/*')
+    except:
+        pass
 
-        pdf_to_jpegs(pdf_list[pdf_number], pdf_to_jpegs_target_dir, dpi=600)
-        
-        # Convert all jpg form rgb to cmyk
-        jpg_list = sorted(glob(f'{pdf_to_jpegs_target_dir}/*'), key=natsort)
-        cmyk_img_dir = f'./cmyk_jpg_out/{pdf_number}_cmyk_imgs'
-        os.mkdir(cmyk_img_dir)
+    try:
+        print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Start processing the PDFs' + bcolors.ENDC)
 
-        # cmyk_out_dir = f'./cmyk_jpg_out/{pdf_number}'
-        # os.mkdir(cmyk_out_dir)
-        for i in range(len(jpg_list)):
-            rgb_to_cmyk_custom(jpg_list[i], f'{cmyk_img_dir}/{i}.jpg')
+        for pdf_number in range(pdf_len):
+            print(systemString + ' ' + bcolors.BRIGHT_CYAN  + f'Processing the first pdf. PDF file: {pdf_list[pdf_number]}' + bcolors.ENDC)
 
-        # Combine jpgs to pdf and sotre to ./converted_cmyk_pdf
-        cmyk_jpg_list = sorted(glob(f'{cmyk_img_dir}/*'), key=natsort)
-        pdf_target_path = f'./converted_cmyk_pdf/{pdf_number}_cmyk.pdf'
-        jpgs_to_pdf(cmyk_jpg_list, pdf_target_path)
+            pdf_to_jpegs_target_dir = f'./Step1_cache/{pdf_number}_rgb_imgs'
+            os.mkdir(pdf_to_jpegs_target_dir)
 
-    # Clear cache
-    os.system('rm -rf ./output_images/*')
-    os.system('rm -rf ./cmyk_jpg_out/*')
+            pdf_to_jpegs(pdf_list[pdf_number], pdf_to_jpegs_target_dir, dpi=600)
+            
+            # Convert all jpg form rgb to cmyk
+            jpg_list = sorted(glob(f'{pdf_to_jpegs_target_dir}/*'), key=natsort)
+            cmyk_img_dir = f'./Step2_cache/{pdf_number}_cmyk_imgs'
+            os.mkdir(cmyk_img_dir)
 
-    print('Master Isei, the calculations are finished.')
+            for i in range(len(jpg_list)):
+                rgb_to_cmyk_custom(jpg_list[i], f'{cmyk_img_dir}/{i}.jpg')
+
+            # Combine jpgs to pdf and sotre to ./Out_PDF
+            cmyk_jpg_list = sorted(glob(f'{cmyk_img_dir}/*'), key=natsort)
+            pdf_target_path = f'./Out_PDF/{pdf_number}_cmyk.pdf'
+            jpgs_to_pdf(cmyk_jpg_list, pdf_target_path)
+
+        # Clear cache after the calculation
+        os.system('rm -rf ./Step1_cache/*')
+        os.system('rm -rf ./Step2_cache/*')
+
+    except KeyboardInterrupt:
+        print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Master Isei, the calculation is interrupted.' + bcolors.ENDC)
+        print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Exiting..' + bcolors.ENDC)
+        os._exit(0)
+
+    print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Master Isei, the calculations are finished.' + bcolors.ENDC)
+    print(systemString + ' ' + bcolors.BRIGHT_CYAN + 'Shutting down..' + bcolors.ENDC)
+
