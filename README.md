@@ -1,4 +1,4 @@
-## A pack for convert (Version 2)
+## A pack for convert pdf contents to cmyk model(Version 2)
 # !! Only works on linux or macos !!
 
 # Usage
